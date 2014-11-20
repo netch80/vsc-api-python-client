@@ -1025,6 +1025,10 @@ class VscApiClient():
             params['user'] = user_id
         return self._request('GET', 'list_job_profiles', params)
 
+    def selfTest_JsonRoundTrip(self, data):
+        return self._request('POST', 'self_test/json_round_trip',
+            data = data)
+
     # -----------------------------------------------------------------
     # Internal methods
     # -----------------------------------------------------------------
