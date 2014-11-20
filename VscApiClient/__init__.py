@@ -623,6 +623,17 @@ class VscApiClient():
         checkIdOrRaise(package_id)
         return self._request('GET', 'package/{0}'.format(package_id))
 
+    def packageGetPicture(self, package_id):
+        """
+        Return package picture, if any.
+
+        :param package_id: UUID of the package.
+        :type package_id: string
+        :rtype: str or NoneType
+        """
+        checkIdOrRaise(package_id)
+        return self._request('GET', 'package/{0}/picture'.format(package_id))
+
     def packageGetAcl(self, package_id):
         """
         Return package ACL.
@@ -676,6 +687,24 @@ class VscApiClient():
         """
         checkIdOrRaise(package_id)
         self._request('PUT', 'package/{0}/acl'.format(package_id), None, data)
+
+    def packageSetPicture(self, package_id, picture):
+        """
+        Set or delete package picture.
+
+        :param package_id: UUID of the package.
+        :type package_id: string
+        :param picture: the picture (binary, in string) or None (for deleting)
+        :type picture: str or NoneType
+        :rtype: NoneType
+        """
+        checkIdOrRaise(package_id)
+        if picture:
+            data = base64.b64encode(picture)
+        else:
+            data = None
+        return self._request('PUT', 'package/{0}/picture'.format(package_id),
+            data = data)
 
     def packageDel(self, package_id):
         """
