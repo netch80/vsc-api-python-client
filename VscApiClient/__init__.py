@@ -9,6 +9,7 @@ import dns.resolver
 import random
 import urllib
 import urllib2
+import cgi
 import uuid
 
 from .errors import *
@@ -1029,12 +1030,20 @@ class VscApiClient():
         return self._request('POST', 'self_test/json_round_trip',
             data = data)
 
+    def selfTest_OctetStreamRoundTrip(self, data):
+        return self._request('POST', 'self_test/octet_stream_round_trip',
+            data = data,
+            request_ct = 'application/octet-stream',
+            response_cts = ['application/octet-stream'],
+            response_decoder = lambda x, y: str(y))
+
     # -----------------------------------------------------------------
     # Internal methods
     # -----------------------------------------------------------------
 
     def _request(self, method, path, params = None, data = None,
-            reauth = False):
+            reauth = False, request_ct = None, response_cts = None,
+            response_decoder = None):
         """
         Do the request to a VSC API Server.
         Returns response body decoded from JSON (normally, this is dict
@@ -1051,6 +1060,14 @@ class VscApiClient():
         :type data: dict or None
         :param reauth: request to redo authentication
         :type reauth: bool
+        :param request_ct: request content type, if overridden, else None
+        :type request_ct: str or NoneType
+        :param response_cts: allowed response content types, if overridden,
+         else None
+        :type response_cts: list(str) or NoneType
+        :param response_decoder: response decoder function, if overridden,
+         else None
+        :type response_decoder: func/2
         :rtype: any
         """
         host, port = random.choice(self.__addrs)
@@ -1072,8 +1089,13 @@ class VscApiClient():
         if self.__cookie_key:
             request.add_header('Cookie', 'auth=%s' % (self.__cookie_key,))
         if data is not None:
-            request.add_header('Content-Type', 'application/json')
-            body = json.dumps(data)
+            if request_ct is None:
+                request_ct = 'application/json'
+            request.add_header('Content-Type', request_ct)
+            if request_ct == 'application/json':
+                body = json.dumps(data)
+            else:
+                body = data
             request.add_header('Content-Length', len(body))
             request.add_data(body)
         try:
@@ -1091,7 +1113,19 @@ class VscApiClient():
             self.__stale_cookie_auth = False
         reply_data = reply.read()
         if reply_data:
-            return json.loads(reply_data)
+            if response_cts is None:
+                response_cts = ['application/json']
+            response_ct = reply.headers.get('content-type')
+            if response_ct:
+                ## Drop parameters, we ignore them now
+                response_ct = cgi.parse_header(response_ct)[0]
+            if response_ct not in response_cts:
+                raise ValueError('Unwanted response content-type: %s' % \
+                    (response_ct,))
+            if response_decoder is not None:
+                return response_decoder(response_ct, reply_data)
+            else:
+                return json.loads(reply_data)
         return None
 
 
